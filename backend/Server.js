@@ -32,7 +32,19 @@ const recommendTotalOutfit =
 const app = express()
 
 app.use(express.json())
-app.use(cors())
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://vercel.com/vimal7/fashion-match/GAhnDPR8QA8hx8WT9og8eGCYCwav"
+    ],
+    credentials: true
+  })
+);
+
+
+
 app.use("/generated", express.static("generated"))
 
 
