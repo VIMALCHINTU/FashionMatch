@@ -37,9 +37,19 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://vercel.com/vimal7/fashion-match/GAhnDPR8QA8hx8WT9og8eGCYCwav"
+      "https://fashion-match-kappa.vercel.app"
     ],
-    credentials: true
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "OPTIONS"
+    ],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization"
+    ]
   })
 );
 
