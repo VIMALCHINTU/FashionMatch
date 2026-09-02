@@ -230,7 +230,7 @@ const toggleTheme = () => {
 
     const res =
       await fetch(
-        "https://fashionmatch-backend.onrender.com/upload-fullbody",
+        "https://fashionmatch.onrender.com/upload-fullbody",
         {
           method: "POST",
 
@@ -462,7 +462,7 @@ setMessage(
       setRecommendedProducts([]);
 
       const res = await fetch(
-        "https://fashionmatch-backend.onrender.com/tryon",
+        "https://fashionmatch.onrender.com/tryon",
         {
           method: "POST",
           body: formdata,
@@ -560,7 +560,7 @@ setMessage(
       setRecommendedProducts([]);
 
       const res = await fetch(
-        "https://fashionmatch-backend.onrender.com/recommend-missing",
+        "https://fashionmatch.onrender.com/recommend-missing",
         {
           method: "POST",
           body: formdata,
@@ -657,7 +657,7 @@ setMessage(
       setRecommendedProducts([]);
 
       const res = await fetch(
-        "https://fashionmatch-backend.onrender.com/totaloutfit",
+        "https://fashionmatch.onrender.com/totaloutfit",
         {
           method: "POST",
           body: formdata,
@@ -798,7 +798,7 @@ setMessage(
 
     const response =
       await fetch(
-        "https://fashionmatch-backend.onrender.com/upload-fullbody",
+        "https://fashionmatch.onrender.com/upload-fullbody",
         {
           method: "POST",
 

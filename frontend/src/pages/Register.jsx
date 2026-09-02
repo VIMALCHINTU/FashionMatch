@@ -59,7 +59,7 @@ function Register() {
 
       const response =
         await fetch(
-          "https://fashionmatch-backend.onrender.com/register",
+          "https://fashionmatch.onrender.com/register",
           {
             method: "POST",
 
@@ -67,7 +67,7 @@ function Register() {
               "Content-Type":
                 "application/json"
             },
-            
+
 
             body:
               JSON.stringify({
