@@ -38,7 +38,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://fashion-match-kappa.vercel.app"
+      "https://fashion-match-kappa.vercel.app",
+      "https://fashion-match-git-main-vimal7.vercel.app"
     ],
     methods: [
       "GET",
@@ -53,7 +54,6 @@ app.use(
     ]
   })
 );
-
 
 
 // app.use("/generated", express.static("generated"))
