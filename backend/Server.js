@@ -1,6 +1,7 @@
 require("dotenv").config()
 
 const express = require("express")
+const path = require("path");
 const multer = require("multer")
 const cors = require("cors")
 const generateTryOn = require("./tryon")
@@ -55,7 +56,13 @@ app.use(
 
 
 
-app.use("/generated", express.static("generated"))
+// app.use("/generated", express.static("generated"))
+app.use(
+  "/generated",
+  express.static(
+    path.join(__dirname, "generated")
+  )
+);
 
 
 const storage = multer.diskStorage({
