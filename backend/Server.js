@@ -585,13 +585,17 @@ app.post(
             // FINAL RESPONSE
             // =============================
 
-            res.status(200).json({
-  message: "Try-on completed",
-
-  result: `${BASE_URL}/${currentPerson.replace(
+            const imageUrl =
+  `${BASE_URL}/${currentPerson.replace(
     /\\/g,
     "/"
-  )}`
+  )}`;
+
+console.log("TRYON IMAGE URL:", imageUrl);
+
+res.status(200).json({
+  message: "Try-on completed",
+  result: imageUrl
 });
 
         } catch (error) {
@@ -1366,7 +1370,7 @@ return res.status(200).json({
   result: `${BASE_URL}/${currentPerson.replace(
   /\\/g,
   "/"
-)}``,
+)}`,
 
   products: recommendedProducts
 });
@@ -1397,32 +1401,18 @@ return res.status(200).json({
 
 
 
-app.listen(4000, () => {
-
-    console.log(
-        "Server is listening on port 4000"
-    )
-
-})
-
-
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
 
 mongoose
-  .connect(
-    process.env.MONGO_URI
-  )
+  .connect(process.env.MONGO_URI)
   .then(() => {
-
-    console.log(
-      "MongoDB connected"
-    );
-
+    console.log("MongoDB connected");
   })
-  .catch(error => {
-
+  .catch((error) => {
     console.log(
       "MongoDB error:",
       error.message
     );
-
   });
