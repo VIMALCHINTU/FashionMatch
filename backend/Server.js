@@ -5,6 +5,11 @@ const path = require("path");
 const multer = require("multer")
 const cors = require("cors")
 const generateTryOn = require("./tryon")
+const PORT = process.env.PORT || 4000;
+
+const BASE_URL =
+  process.env.BASE_URL ||
+  `http://localhost:${PORT}`;
 const recommendMissingItems=require("./Recommend")
 const cloudinary =
   require("./cloudinary");
@@ -581,9 +586,13 @@ app.post(
             // =============================
 
             res.status(200).json({
-    message: "Try-on completed",
-    result: `http://localhost:4000/${currentPerson.replace(/\\/g, "/")}`
-})
+  message: "Try-on completed",
+
+  result: `${BASE_URL}/${currentPerson.replace(
+    /\\/g,
+    "/"
+  )}`
+});
 
         } catch (error) {
 
@@ -1061,8 +1070,7 @@ app.post(
 
 
       const finalImageUrl =
-        `http://localhost:4000/${normalizedPath}`;
-
+  `${BASE_URL}/${normalizedPath}`;
 
       // =====================================
       // 12. SEND FINAL RESPONSE
@@ -1355,10 +1363,10 @@ return res.status(200).json({
 
   occasion,
 
-  result: `http://localhost:4000/${currentPerson.replace(
-    /\\/g,
-    "/"
-  )}`,
+  result: `${BASE_URL}/${currentPerson.replace(
+  /\\/g,
+  "/"
+)}``,
 
   products: recommendedProducts
 });
