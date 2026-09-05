@@ -5,11 +5,6 @@ const path = require("path");
 const multer = require("multer")
 const cors = require("cors")
 const generateTryOn = require("./tryon")
-const PORT = process.env.PORT || 4000;
-
-const BASE_URL =
-  process.env.BASE_URL ||
-  `http://localhost:${PORT}`;
 const recommendMissingItems=require("./Recommend")
 const cloudinary =
   require("./cloudinary");
@@ -43,8 +38,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://fashion-match-kappa.vercel.app",
-      "https://fashion-match-git-main-vimal7.vercel.app"
+      "https://fashion-match-kappa.vercel.app"
     ],
     methods: [
       "GET",
@@ -59,6 +53,7 @@ app.use(
     ]
   })
 );
+
 
 
 // app.use("/generated", express.static("generated"))
@@ -585,18 +580,10 @@ app.post(
             // FINAL RESPONSE
             // =============================
 
-            const imageUrl =
-  `${BASE_URL}/${currentPerson.replace(
-    /\\/g,
-    "/"
-  )}`;
-
-console.log("TRYON IMAGE URL:", imageUrl);
-
-res.status(200).json({
-  message: "Try-on completed",
-  result: imageUrl
-});
+            res.status(200).json({
+    message: "Try-on completed",
+    result: `http://localhost:4000/${currentPerson.replace(/\\/g, "/")}`
+})
 
         } catch (error) {
 
@@ -1074,7 +1061,8 @@ app.post(
 
 
       const finalImageUrl =
-  `${BASE_URL}/${normalizedPath}`;
+        `http://localhost:4000/${normalizedPath}`;
+
 
       // =====================================
       // 12. SEND FINAL RESPONSE
@@ -1367,10 +1355,10 @@ return res.status(200).json({
 
   occasion,
 
-  result: `${BASE_URL}/${currentPerson.replace(
-  /\\/g,
-  "/"
-)}`,
+  result: `http://localhost:4000/${currentPerson.replace(
+    /\\/g,
+    "/"
+  )}`,
 
   products: recommendedProducts
 });
@@ -1401,18 +1389,32 @@ return res.status(200).json({
 
 
 
-app.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
-});
+app.listen(4000, () => {
+
+    console.log(
+        "Server is listening on port 4000"
+    )
+
+})
+
+
 
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(
+    process.env.MONGO_URI
+  )
   .then(() => {
-    console.log("MongoDB connected");
+
+    console.log(
+      "MongoDB connected"
+    );
+
   })
-  .catch((error) => {
+  .catch(error => {
+
     console.log(
       "MongoDB error:",
       error.message
     );
+
   });
