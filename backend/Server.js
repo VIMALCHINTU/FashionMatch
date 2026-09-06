@@ -1,7 +1,6 @@
 require("dotenv").config()
 
 const express = require("express")
-const path = require("path");
 const multer = require("multer")
 const cors = require("cors")
 const generateTryOn = require("./tryon")
@@ -33,36 +32,8 @@ const recommendTotalOutfit =
 const app = express()
 
 app.use(express.json())
-
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://fashion-match-kappa.vercel.app"
-    ],
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "DELETE",
-      "OPTIONS"
-    ],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization"
-    ]
-  })
-);
-
-
-
-// app.use("/generated", express.static("generated"))
-app.use(
-  "/generated",
-  express.static(
-    path.join(__dirname, "generated")
-  )
-);
+app.use(cors())
+app.use("/generated", express.static("generated"))
 
 
 const storage = multer.diskStorage({
