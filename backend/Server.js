@@ -553,7 +553,7 @@ app.post(
 
             res.status(200).json({
     message: "Try-on completed",
-    result: `http://localhost:4000/${currentPerson.replace(/\\/g, "/")}`
+    result: `https://fashion-match-kappa.vercel.app/${currentPerson.replace(/\\/g, "/")}`
 })
 
         } catch (error) {
@@ -1032,7 +1032,7 @@ app.post(
 
 
       const finalImageUrl =
-        `http://localhost:4000/${normalizedPath}`;
+        `https://fashion-match-kappa.vercel.app/${normalizedPath}`;
 
 
       // =====================================
@@ -1326,7 +1326,7 @@ return res.status(200).json({
 
   occasion,
 
-  result: `http://localhost:4000/${currentPerson.replace(
+  result: `https://fashion-match-kappa.vercel.app/${currentPerson.replace(
     /\\/g,
     "/"
   )}`,
