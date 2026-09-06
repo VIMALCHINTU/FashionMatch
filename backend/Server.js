@@ -581,22 +581,10 @@ app.post(
   "/recommend-missing",
 
   upload.fields([
-    {
-      name: "fullbody",
-      maxCount: 1
-    },
-    {
-      name: "shirt",
-      maxCount: 1
-    },
-    {
-      name: "pant",
-      maxCount: 1
-    },
-    {
-      name: "shoes",
-      maxCount: 1
-    }
+    { name: "fullbody", maxCount: 1 },
+    { name: "shirt", maxCount: 1 },
+    { name: "pant", maxCount: 1 },
+    { name: "shoes", maxCount: 1 }
   ]),
 
   async (req, res) => {
@@ -604,66 +592,44 @@ app.post(
     try {
 
       // =====================================
-      // 1. GET UPLOADED FILES
+      // 1. GET FILES
       // =====================================
 
-      if (!req.files?.fullbody?.[0]) {
+      const fullbody = req.files?.fullbody?.[0];
+
+      const shirt = req.files?.shirt?.[0] || null;
+      const pant = req.files?.pant?.[0] || null;
+      const shoes = req.files?.shoes?.[0] || null;
+
+
+      if (!fullbody) {
+
         return res.status(400).json({
-          message:
-            "Full body image is required"
+          message: "Full body image is required"
         });
+
       }
 
-      const fullbody =
-        req.files.fullbody[0];
 
-      const shirt =
-        req.files.shirt?.[0] || null;
+      console.log("\n=================================");
+      console.log("RECOMMEND MISSING START");
+      console.log("=================================");
 
-      const pant =
-        req.files.pant?.[0] || null;
-
-      const shoes =
-        req.files.shoes?.[0] || null;
-
-
-      console.log(
-        "FULLBODY:",
-        fullbody?.path
-      );
-
-      console.log(
-        "SHIRT:",
-        shirt?.path || "MISSING"
-      );
-
-      console.log(
-        "PANT:",
-        pant?.path || "MISSING"
-      );
-
-      console.log(
-        "SHOES:",
-        shoes?.path || "MISSING"
-      );
+      console.log("FULLBODY:", fullbody.path);
+      console.log("SHIRT:", shirt?.path || "MISSING");
+      console.log("PANT:", pant?.path || "MISSING");
+      console.log("SHOES:", shoes?.path || "MISSING");
 
 
       // =====================================
-      // 2. START WITH ORIGINAL PERSON
+      // 2. START WITH FULL BODY
       // =====================================
 
-      let currentPerson =
-        fullbody.path;
+      let currentPerson = fullbody.path;
 
 
       // =====================================
-      // 3. WEAR EVERYTHING
-      // THE USER ALREADY HAS
-      //
-      // ORDER:
-      // SHIRT
-      // PANT
-      // SHOES
+      // 3. APPLY USER'S CLOTHES
       // =====================================
 
       const userClothes = [
@@ -682,40 +648,18 @@ app.post(
       ];
 
 
-      for (
-        const clothing
-        of userClothes
-      ) {
+      for (const clothing of userClothes) {
 
-        // User does not have this item
         if (!clothing.file?.path) {
           continue;
         }
 
 
-        console.log(
-          "\n=============================="
-        );
+        console.log("\n---------------------------------");
+        console.log("USER CLOTHING:", clothing.type);
+        console.log("PERSON:", currentPerson);
+        console.log("GARMENT:", clothing.file.path);
 
-        console.log(
-          "WEARING USER'S:",
-          clothing.type
-        );
-
-        console.log(
-          "PERSON IMAGE:",
-          currentPerson
-        );
-
-        console.log(
-          "CLOTHING IMAGE:",
-          clothing.file.path
-        );
-
-
-        // =====================================
-        // SEND TO TRY-ON
-        // =====================================
 
         const tryOnResult =
           await generateTryOn(
@@ -725,7 +669,7 @@ app.post(
 
 
         console.log(
-          "TRY-ON RESULT:",
+          "USER TRY-ON RESULT:",
           tryOnResult
         );
 
@@ -733,124 +677,135 @@ app.post(
         if (!tryOnResult) {
 
           console.log(
-            "TRY-ON FAILED FOR USER'S:",
+            "USER TRY-ON FAILED:",
             clothing.type
           );
 
           continue;
+
         }
 
 
-        // =====================================
-        // UPDATE CURRENT PERSON
-        // =====================================
-
-        currentPerson =
-          tryOnResult;
+        // VERY IMPORTANT
+        currentPerson = tryOnResult;
 
 
         console.log(
           "UPDATED PERSON:",
           currentPerson
         );
+
       }
 
 
       // =====================================
-      // NOW currentPerson contains:
-      //
-      // FULL BODY
-      // + SHIRT USER HAS
-      // + PANT USER HAS
-      // + SHOES USER HAS
-      //
-      // Only the uploaded items are worn.
+      // 4. DETECT MISSING ITEMS
       // =====================================
 
+      console.log("\n=================================");
+      console.log("CHECKING MISSING ITEMS");
+      console.log("PERSON IMAGE:", currentPerson);
+      console.log("=================================");
 
-      // =====================================
-      // 4. FIND MISSING ITEMS
-      //
-      // Send UPDATED PERSON IMAGE
-      // =====================================
 
       const recommendationResult =
         await recommendMissingItems(
+
           currentPerson,
-          shirt ? shirt.path : null,
-          pant ? pant.path : null,
-          shoes ? shoes.path : null
+
+          shirt
+            ? shirt.path
+            : null,
+
+          pant
+            ? pant.path
+            : null,
+
+          shoes
+            ? shoes.path
+            : null
+
         );
 
 
       console.log(
-        "\nMISSING ITEMS:",
-        recommendationResult.missingItems
-      );
-
-      console.log(
-        "RECOMMENDATIONS:",
-        recommendationResult.recommendations
+        "RECOMMENDATION RESULT:",
+        recommendationResult
       );
 
 
       const missingItems =
-        recommendationResult.missingItems || [];
+        recommendationResult?.missingItems || [];
 
       const recommendations =
-        recommendationResult.recommendations || [];
+        recommendationResult?.recommendations || [];
+
+
+      console.log(
+        "MISSING ITEMS:",
+        missingItems
+      );
 
 
       // =====================================
-      // 5. STORE PRODUCTS
-      // FOR FRONTEND
+      // 5. PRODUCTS FOR FRONTEND
       // =====================================
 
       const recommendedProducts = [];
 
 
       // =====================================
-      // 6. PROCESS MISSING ITEMS ONLY
+      // 6. PROCESS EACH MISSING ITEM
       // =====================================
 
-      for (
-        const recommendation
-        of recommendations
-      ) {
+      for (const recommendation of recommendations) {
 
-        // Extra safety
         if (
           !missingItems.includes(
             recommendation.type
           )
         ) {
+
           continue;
+
         }
 
 
+        console.log("\n=================================");
         console.log(
-          "\n=============================="
-        );
-
-        console.log(
-          "SEARCHING FOR:",
+          "PROCESSING MISSING:",
           recommendation.type
         );
-
         console.log(
-          "SEARCH QUERY:",
+          "SEARCH:",
           recommendation.searchQuery
         );
+        console.log("=================================");
 
 
         // =====================================
-        // SEARCH QUICKCOMMERCE
+        // SEARCH PRODUCTS
         // =====================================
 
-        const products =
-          await searchProducts(
-            recommendation.searchQuery
+        let products = [];
+
+        try {
+
+          products =
+            await searchProducts(
+              recommendation.searchQuery
+            );
+
+        } catch (error) {
+
+          console.log(
+            "PRODUCT SEARCH ERROR:",
+            error.message
           );
+
+          continue;
+
+        }
 
 
         console.log(
@@ -860,38 +815,36 @@ app.post(
 
 
         if (
-          !products ||
+          !Array.isArray(products) ||
           products.length === 0
         ) {
 
           console.log(
-            "NO PRODUCTS FOUND FOR:",
+            "NO PRODUCTS FOUND:",
             recommendation.type
           );
 
           continue;
+
         }
 
 
         // =====================================
-        // 7. ADD ALL QUICKCOMMERCE PRODUCTS
-        // TO FINAL RESPONSE
+        // 7. ADD PRODUCTS TO FRONTEND
         // =====================================
 
-        for (
-          const product
-          of products
-        ) {
+        for (const product of products) {
 
           recommendedProducts.push({
+
             type:
               recommendation.type,
 
             color:
-              recommendation.color,
+              recommendation.color || "",
 
             style:
-              recommendation.style,
+              recommendation.style || "",
 
             name:
               product.name || "",
@@ -907,121 +860,176 @@ app.post(
 
             platform:
               product.platform || ""
+
           });
+
         }
 
 
         // =====================================
-        // 8. PICK ONE PRODUCT
-        // FOR TRY-ON
+        // 8. TRY PRODUCTS UNTIL ONE WORKS
         // =====================================
 
-        const productForTryOn =
-          products.find(
-            product =>
-              product.image &&
-              typeof product.image === "string"
-          );
+        let itemApplied = false;
 
 
-        if (!productForTryOn) {
+        for (const product of products) {
+
+          if (
+            !product.image ||
+            typeof product.image !== "string"
+          ) {
+
+            continue;
+
+          }
+
 
           console.log(
-            "NO PRODUCT IMAGE FOR:",
-            recommendation.type
+            "TRYING PRODUCT:",
+            product.name
           );
-
-          continue;
-        }
-
-
-        console.log(
-          "TRYING ON:",
-          productForTryOn.name
-        );
-
-        console.log(
-          "PRODUCT IMAGE:",
-          productForTryOn.image
-        );
-
-
-        // =====================================
-        // 9. DOWNLOAD PRODUCT IMAGE
-        // =====================================
-
-        const downloadedImage =
-          await downloadImage(
-            productForTryOn.image,
-            `${recommendation.type}-${Date.now()}.jpg`
-          );
-
-
-        if (!downloadedImage) {
 
           console.log(
-            "DOWNLOAD FAILED:",
-            recommendation.type
+            "IMAGE:",
+            product.image
           );
 
-          continue;
-        }
+
+          // =====================================
+          // DOWNLOAD PRODUCT IMAGE
+          // =====================================
+
+          let downloadedImage = null;
 
 
-        console.log(
-          "DOWNLOADED:",
-          downloadedImage
-        );
+          try {
+
+            downloadedImage =
+              await downloadImage(
+
+                product.image,
+
+                `${recommendation.type}-${Date.now()}.jpg`
+
+              );
+
+          } catch (error) {
+
+            console.log(
+              "DOWNLOAD ERROR:",
+              error.message
+            );
+
+            continue;
+
+          }
 
 
-        // =====================================
-        // 10. WEAR RECOMMENDED ITEM
-        //
-        // currentPerson already contains
-        // all the clothes user uploaded
-        // =====================================
+          if (!downloadedImage) {
 
-        const tryOnResult =
-          await generateTryOn(
-            currentPerson,
+            console.log(
+              "DOWNLOAD FAILED:",
+              product.name
+            );
+
+            continue;
+
+          }
+
+
+          console.log(
+            "DOWNLOADED:",
             downloadedImage
           );
 
 
-        console.log(
-          "RECOMMENDED TRY-ON RESULT:",
-          tryOnResult
-        );
+          // =====================================
+          // APPLY MISSING ITEM
+          // =====================================
+
+          let tryOnResult = null;
 
 
-        if (!tryOnResult) {
+          try {
+
+            tryOnResult =
+              await generateTryOn(
+
+                currentPerson,
+
+                downloadedImage
+
+              );
+
+          } catch (error) {
+
+            console.log(
+              "TRY-ON ERROR:",
+              error.message
+            );
+
+            continue;
+
+          }
+
 
           console.log(
-            "RECOMMENDED TRY-ON FAILED:",
-            recommendation.type
+            "MISSING ITEM TRY-ON:",
+            tryOnResult
           );
 
-          continue;
+
+          if (!tryOnResult) {
+
+            console.log(
+              "TRY-ON FAILED:",
+              product.name
+            );
+
+            continue;
+
+          }
+
+
+          // =====================================
+          // IMPORTANT
+          // UPDATE PERSON IMAGE
+          // =====================================
+
+          currentPerson =
+            tryOnResult;
+
+
+          console.log(
+            "UPDATED PERSON AFTER",
+            recommendation.type,
+            ":",
+            currentPerson
+          );
+
+
+          itemApplied = true;
+
+          break;
+
         }
 
 
-        // =====================================
-        // UPDATE FINAL PERSON
-        // =====================================
+        if (!itemApplied) {
 
-        currentPerson =
-          tryOnResult;
+          console.log(
+            "COULD NOT APPLY:",
+            recommendation.type
+          );
 
+        }
 
-        console.log(
-          "UPDATED FINAL PERSON:",
-          currentPerson
-        );
       }
 
 
       // =====================================
-      // 11. CREATE FINAL IMAGE URL
+      // 9. FINAL IMAGE PATH
       // =====================================
 
       const normalizedPath =
@@ -1031,12 +1039,26 @@ app.post(
         );
 
 
+      // =====================================
+      // 10. FINAL IMAGE URL
+      // =====================================
+
       const finalImageUrl =
         `https://fashionmatch.onrender.com/${normalizedPath}`;
 
 
+      console.log("\n=================================");
+      console.log("FINAL PERSON:", currentPerson);
+      console.log("FINAL IMAGE URL:", finalImageUrl);
+      console.log(
+        "TOTAL PRODUCTS:",
+        recommendedProducts.length
+      );
+      console.log("=================================");
+
+
       // =====================================
-      // 12. SEND FINAL RESPONSE
+      // 11. RESPONSE
       // =====================================
 
       return res.status(200).json({
@@ -1044,7 +1066,9 @@ app.post(
         message:
           "Outfit recommendation completed",
 
-        missingItems,
+        missingItems:
+
+          missingItems,
 
         result:
           finalImageUrl,
@@ -1054,12 +1078,29 @@ app.post(
 
       });
 
+
     } catch (error) {
 
       console.log(
-        "\nRECOMMEND MISSING ERROR:",
+        "\n================================="
+      );
+
+      console.log(
+        "RECOMMEND MISSING ERROR"
+      );
+
+      console.log(
         error.message
       );
+
+      console.log(
+        error.stack
+      );
+
+      console.log(
+        "================================="
+      );
+
 
       return res.status(500).json({
 
@@ -1075,7 +1116,6 @@ app.post(
 
   }
 );
-
 
 // ======================================
 // TOTAL OUTFIT BASED ON OCCASION
