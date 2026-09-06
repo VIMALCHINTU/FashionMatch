@@ -1123,32 +1123,23 @@ app.post(
 
 app.post(
   "/totaloutfit",
-
   upload.single("fullbody"),
-
   async (req, res) => {
-
     try {
-
       const fullbody = req.file;
       const occasion = req.body.occasion;
 
       if (!fullbody) {
-
         return res.status(400).json({
           message: "Full body image is required"
         });
-
       }
 
       if (!occasion) {
-
         return res.status(400).json({
           message: "Occasion is required"
         });
-
       }
-
 
       // ==================================
       // GEMINI GENERATES 3 SEARCH QUERIES
@@ -1160,24 +1151,19 @@ app.post(
           occasion
         );
 
-
       console.log(
         "TOTAL OUTFIT RECOMMENDATIONS:",
         recommendationResult
       );
 
-
       const recommendations =
         recommendationResult.recommendations || [];
-
 
       // ==================================
       // START WITH ORIGINAL PERSON
       // ==================================
 
-      let currentPerson =
-        fullbody.path;
-
+      let currentPerson = fullbody.path;
 
       // ==================================
       // PRODUCTS FOR FRONTEND
@@ -1185,22 +1171,17 @@ app.post(
 
       const recommendedProducts = [];
 
-
       // ==================================
       // PROCESS SHIRT, PANT, SHOES
       // ==================================
 
-      for (
-        const recommendation
-        of recommendations
-      ) {
+      for (const recommendation of recommendations) {
 
         console.log(
           "SEARCHING:",
           recommendation.type,
           recommendation.searchQuery
         );
-
 
         // ==================================
         // SEARCH AMAZON + FLIPKART + MYNTRA
@@ -1211,56 +1192,31 @@ app.post(
             recommendation.searchQuery
           );
 
-
-        if (
-          !products ||
-          products.length === 0
-        ) {
-
+        if (!products || products.length === 0) {
           console.log(
             "No products found for:",
             recommendation.type
           );
 
           continue;
-
         }
 
-
         // ==================================
-        // ADD ALL PLATFORM PRODUCTS
-        // TO FRONTEND RESPONSE
+        // ADD ALL PRODUCTS TO FRONTEND
         // ==================================
 
-        for (
-          const product
-          of products
-        ) {
+        for (const product of products) {
 
           recommendedProducts.push({
-
-            type:
-              recommendation.type,
-
-            name:
-              product.name,
-
-            image:
-              product.image,
-
-            price:
-              product.price,
-
-            url:
-              product.url,
-
-            platform:
-              product.platform
-
+            type: recommendation.type,
+            name: product.name,
+            image: product.image,
+            price: product.price,
+            url: product.url,
+            platform: product.platform
           });
 
         }
-
 
         // ==================================
         // SELECT ONE PRODUCT FOR TRY-ON
@@ -1269,9 +1225,9 @@ app.post(
         const productForTryOn =
           products.find(
             product =>
-              product.image
+              product.image &&
+              typeof product.image === "string"
           );
-
 
         if (!productForTryOn) {
 
@@ -1281,15 +1237,12 @@ app.post(
           );
 
           continue;
-
         }
-
 
         console.log(
           "TRYING ON:",
           productForTryOn.name
         );
-
 
         // ==================================
         // DOWNLOAD PRODUCT IMAGE
@@ -1301,7 +1254,6 @@ app.post(
             `${recommendation.type}-${Date.now()}.jpg`
           );
 
-
         if (!downloadedImage) {
 
           console.log(
@@ -1310,9 +1262,7 @@ app.post(
           );
 
           continue;
-
         }
-
 
         // ==================================
         // APPLY TO CURRENT PERSON
@@ -1324,7 +1274,6 @@ app.post(
             downloadedImage
           );
 
-
         if (!tryOnResult) {
 
           console.log(
@@ -1333,46 +1282,40 @@ app.post(
           );
 
           continue;
-
         }
 
+        // ==================================
+        // UPDATE PERSON IMAGE
+        // ==================================
 
-        // IMPORTANT:
-        // Use the newly generated image
-        // for the next clothing item
-
-        currentPerson =
-          tryOnResult;
-
+        currentPerson = tryOnResult;
 
         console.log(
           "UPDATED PERSON:",
           currentPerson
         );
-
       }
 
+      // ==================================
+      // FINAL IMAGE URL
+      // ==================================
+
+      const normalizedPath =
+        currentPerson.replace(/\\/g, "/");
+
+      const finalImageUrl =
+        `https://fashionmatch.onrender.com/${normalizedPath}`;
 
       // ==================================
       // FINAL RESPONSE
       // ==================================
 
-      // ==================================
-// FINAL RESPONSE
-// ==================================
-
-return res.status(200).json({
-  message: "Your occasion outfit is ready",
-
-  occasion,
-
-  result: `https://fashionmatch.onrender.com/${currentPerson.replace(
-    /\\/g,
-    "/"
-  )}`,
-
-  products: recommendedProducts
-});
+      return res.status(200).json({
+        message: "Your occasion outfit is ready",
+        occasion,
+        result: finalImageUrl,
+        products: recommendedProducts
+      });
 
     } catch (error) {
 
@@ -1382,20 +1325,12 @@ return res.status(200).json({
       );
 
       return res.status(500).json({
-
-        message:
-          "Failed to generate total outfit",
-
-        error:
-          error.message
-
+        message: "Failed to generate total outfit",
+        error: error.message
       });
-
     }
-
   }
 );
-
 
 
 
