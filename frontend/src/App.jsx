@@ -1612,36 +1612,35 @@ setMessage(
           )}
 
 
-          {/* RECOMMENDED PRODUCTS */}
-
-          {recommendedProducts.length > 0 && (
-
-            <div className="recommended-products">
-
-              <h2 className="recommend-title">
-                Recommended Products
-              </h2>
-
-              <div className="products-grid">
-
-                {recommendedProducts.map(
-                  (product, index) => (
-
-                    <ProductCard
-                      key={`${product.type}-${product.platform}-${index}`}
-                      product={product}
-                    />
-
-                  )
-                )}
-
-              </div>
-
-            </div>
-
-          )}
-
         </section>
+         {/* RECOMMENDED PRODUCTS */}
+
+{recommendedProducts.length > 0 && (
+
+  <div className="recommended-products">
+
+    <h2 className="recommend-title">
+      Recommended Products
+    </h2>
+
+    <div className="products-grid">
+
+      {recommendedProducts.map(
+        (product, index) => (
+
+          <ProductCard
+            key={`${product.type}-${product.platform}-${index}`}
+            product={product}
+          />
+
+        )
+      )}
+
+    </div>
+
+  </div>
+
+)}
 
       </main>
 
