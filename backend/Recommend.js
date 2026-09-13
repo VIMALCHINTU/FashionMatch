@@ -60,10 +60,17 @@ async function recommendMissingItems(
     }
 
     // =====================================
-    // 3. CREATE MISTRAL PROMPT
+    // 3. CREATE GEMINI PARTS
     // =====================================
 
-    const prompt = `
+    const parts = [];
+
+    // =====================================
+    // MAIN FASHION STYLIST PROMPT
+    // =====================================
+
+    parts.push({
+      text: `
 You are an expert modern fashion stylist.
 
 Analyze the person and the CURRENT OUTFIT shown
@@ -263,7 +270,7 @@ Do not include markdown.
 
 Do not include explanation outside JSON.
 
-Return JSON using exactly this structure:
+Use exactly this structure:
 
 {
   "recommendations": [
@@ -277,9 +284,8 @@ Return JSON using exactly this structure:
     }
   ]
 }
-
-Return a JSON object only.
-`;
+`
+    });
 
     // =====================================
     // 4. READ UPDATED PERSON IMAGE
@@ -291,81 +297,87 @@ Return a JSON object only.
       );
 
     const base64Image =
-      imageBuffer.toString("base64");
+      imageBuffer.toString(
+        "base64"
+      );
 
     // =====================================
-    // 5. CREATE MISTRAL IMAGE DATA URL
+    // ADD IMAGE TO GEMINI
     // =====================================
 
-    const imageDataUrl =
-      `data:image/jpeg;base64,${base64Image}`;
+    parts.push({
+      text: `
+This is the CURRENT UPDATED PERSON IMAGE.
+
+Analyze the clothes visible in this image.
+
+The person may already be wearing clothing items
+uploaded by the user.
+
+Use the actual visible outfit as the main basis
+for your recommendation.
+`
+    });
+
+    parts.push({
+      inlineData: {
+        mimeType: "image/jpeg",
+        data: base64Image
+      }
+    });
 
     // =====================================
-    // 6. SEND REQUEST TO MISTRAL
+    // 5. SEND REQUEST TO GEMINI
     // =====================================
 
     const response =
       await fetch(
-        "https://api.mistral.ai/v1/chat/completions",
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json",
-            "Authorization":
-              `Bearer ${process.env.MISTRAL_API_KEY}`
+            "Content-Type":
+              "application/json"
           },
 
           body: JSON.stringify({
-            model: "mistral-small-2506",
-
-            messages: [
+            contents: [
               {
-                role: "user",
-
-                content: [
-                  {
-                    type: "text",
-                    text: prompt
-                  },
-
-                  {
-                    type: "image_url",
-                    image_url: imageDataUrl
-                  }
-                ]
+                parts: parts
               }
             ],
 
-            response_format: {
-              type: "json_object"
-            },
+            generationConfig: {
+              responseMimeType:
+                "application/json",
 
-            temperature: 0.7
+              temperature: 0.7
+            }
           })
         }
       );
 
     // =====================================
-    // 7. GET MISTRAL RESPONSE
+    // 6. GET GEMINI RESPONSE
     // =====================================
 
     const data =
       await response.json();
 
     console.log(
-      "MISTRAL STATUS:",
+      "GEMINI STATUS:",
       response.status
     );
 
     // =====================================
-    // HANDLE MISTRAL ERROR
+    // HANDLE GEMINI ERROR
     // =====================================
 
     if (!response.ok) {
 
       console.log(
-        "MISTRAL ERROR:"
+        "GEMINI ERROR:"
       );
 
       console.dir(
@@ -382,19 +394,20 @@ Return a JSON object only.
     }
 
     // =====================================
-    // 8. EXTRACT MISTRAL TEXT
+    // 7. EXTRACT GEMINI TEXT
     // =====================================
 
     const text =
       data
-        ?.choices?.[0]
-        ?.message
-        ?.content;
+        ?.candidates?.[0]
+        ?.content
+        ?.parts?.[0]
+        ?.text;
 
     if (!text) {
 
       console.log(
-        "NO MISTRAL RESPONSE TEXT"
+        "NO GEMINI RESPONSE TEXT"
       );
 
       console.dir(
@@ -411,7 +424,7 @@ Return a JSON object only.
     }
 
     console.log(
-      "MISTRAL RESPONSE:"
+      "GEMINI RESPONSE:"
     );
 
     console.log(
@@ -419,7 +432,7 @@ Return a JSON object only.
     );
 
     // =====================================
-    // 9. PARSE JSON
+    // 8. PARSE JSON
     // =====================================
 
     let recommendation;
@@ -432,12 +445,12 @@ Return a JSON object only.
     } catch (parseError) {
 
       console.log(
-        "MISTRAL JSON PARSE ERROR:",
+        "GEMINI JSON PARSE ERROR:",
         parseError.message
       );
 
       console.log(
-        "RAW MISTRAL RESPONSE:",
+        "RAW GEMINI RESPONSE:",
         text
       );
 
@@ -448,18 +461,20 @@ Return a JSON object only.
     }
 
     // =====================================
-    // 10. GET RECOMMENDATIONS
+    // 9. GET RECOMMENDATIONS
     // =====================================
 
-    const mistralRecommendations =
+    const geminiRecommendations =
       recommendation.recommendations || [];
 
     // =====================================
-    // 11. FILTER ONLY MISSING ITEMS
+    // 10. FILTER ONLY MISSING ITEMS
+    //
+    // EXTRA SAFETY
     // =====================================
 
     const recommendations =
-      mistralRecommendations.filter(
+      geminiRecommendations.filter(
         item => {
 
           if (!item?.type) {
@@ -473,7 +488,7 @@ Return a JSON object only.
       );
 
     // =====================================
-    // 12. LOG FINAL RESULT
+    // 11. LOG FINAL RESULT
     // =====================================
 
     console.log(
@@ -488,7 +503,7 @@ Return a JSON object only.
     );
 
     // =====================================
-    // 13. RETURN RESULT
+    // 12. RETURN RESULT
     // =====================================
 
     return {
