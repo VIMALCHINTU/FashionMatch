@@ -60,17 +60,10 @@ async function recommendMissingItems(
     }
 
     // =====================================
-    // 3. CREATE GEMINI PARTS
+    // 3. CREATE MISTRAL PROMPT
     // =====================================
 
-    const parts = [];
-
-    // =====================================
-    // MAIN FASHION STYLIST PROMPT
-    // =====================================
-
-    parts.push({
-      text: `
+    const prompt = `
 You are an expert modern fashion stylist.
 
 Analyze the person and the CURRENT OUTFIT shown
@@ -270,7 +263,7 @@ Do not include markdown.
 
 Do not include explanation outside JSON.
 
-Use exactly this structure:
+Return JSON using exactly this structure:
 
 {
   "recommendations": [
@@ -284,8 +277,9 @@ Use exactly this structure:
     }
   ]
 }
-`
-    });
+
+Return a JSON object only.
+`;
 
     // =====================================
     // 4. READ UPDATED PERSON IMAGE
@@ -297,87 +291,81 @@ Use exactly this structure:
       );
 
     const base64Image =
-      imageBuffer.toString(
-        "base64"
-      );
+      imageBuffer.toString("base64");
 
     // =====================================
-    // ADD IMAGE TO GEMINI
+    // 5. CREATE MISTRAL IMAGE DATA URL
     // =====================================
 
-    parts.push({
-      text: `
-This is the CURRENT UPDATED PERSON IMAGE.
-
-Analyze the clothes visible in this image.
-
-The person may already be wearing clothing items
-uploaded by the user.
-
-Use the actual visible outfit as the main basis
-for your recommendation.
-`
-    });
-
-    parts.push({
-      inlineData: {
-        mimeType: "image/jpeg",
-        data: base64Image
-      }
-    });
+    const imageDataUrl =
+      `data:image/jpeg;base64,${base64Image}`;
 
     // =====================================
-    // 5. SEND REQUEST TO GEMINI
+    // 6. SEND REQUEST TO MISTRAL
     // =====================================
 
     const response =
       await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        "https://api.mistral.ai/v1/chat/completions",
         {
           method: "POST",
 
           headers: {
-            "Content-Type":
-              "application/json"
+            "Content-Type": "application/json",
+            "Authorization":
+              `Bearer ${process.env.MISTRAL_API_KEY}`
           },
 
           body: JSON.stringify({
-            contents: [
+            model: "mistral-small-2506",
+
+            messages: [
               {
-                parts: parts
+                role: "user",
+
+                content: [
+                  {
+                    type: "text",
+                    text: prompt
+                  },
+
+                  {
+                    type: "image_url",
+                    image_url: imageDataUrl
+                  }
+                ]
               }
             ],
 
-            generationConfig: {
-              responseMimeType:
-                "application/json",
+            response_format: {
+              type: "json_object"
+            },
 
-              temperature: 0.7
-            }
+            temperature: 0.7
           })
         }
       );
 
     // =====================================
-    // 6. GET GEMINI RESPONSE
+    // 7. GET MISTRAL RESPONSE
     // =====================================
 
     const data =
       await response.json();
 
     console.log(
-      "GEMINI STATUS:",
+      "MISTRAL STATUS:",
       response.status
     );
 
     // =====================================
-    // HANDLE GEMINI ERROR
+    // HANDLE MISTRAL ERROR
     // =====================================
 
     if (!response.ok) {
 
       console.log(
-        "GEMINI ERROR:"
+        "MISTRAL ERROR:"
       );
 
       console.dir(
@@ -394,20 +382,19 @@ for your recommendation.
     }
 
     // =====================================
-    // 7. EXTRACT GEMINI TEXT
+    // 8. EXTRACT MISTRAL TEXT
     // =====================================
 
     const text =
       data
-        ?.candidates?.[0]
-        ?.content
-        ?.parts?.[0]
-        ?.text;
+        ?.choices?.[0]
+        ?.message
+        ?.content;
 
     if (!text) {
 
       console.log(
-        "NO GEMINI RESPONSE TEXT"
+        "NO MISTRAL RESPONSE TEXT"
       );
 
       console.dir(
@@ -424,7 +411,7 @@ for your recommendation.
     }
 
     console.log(
-      "GEMINI RESPONSE:"
+      "MISTRAL RESPONSE:"
     );
 
     console.log(
@@ -432,7 +419,7 @@ for your recommendation.
     );
 
     // =====================================
-    // 8. PARSE JSON
+    // 9. PARSE JSON
     // =====================================
 
     let recommendation;
@@ -445,12 +432,12 @@ for your recommendation.
     } catch (parseError) {
 
       console.log(
-        "GEMINI JSON PARSE ERROR:",
+        "MISTRAL JSON PARSE ERROR:",
         parseError.message
       );
 
       console.log(
-        "RAW GEMINI RESPONSE:",
+        "RAW MISTRAL RESPONSE:",
         text
       );
 
@@ -461,20 +448,18 @@ for your recommendation.
     }
 
     // =====================================
-    // 9. GET RECOMMENDATIONS
+    // 10. GET RECOMMENDATIONS
     // =====================================
 
-    const geminiRecommendations =
+    const mistralRecommendations =
       recommendation.recommendations || [];
 
     // =====================================
-    // 10. FILTER ONLY MISSING ITEMS
-    //
-    // EXTRA SAFETY
+    // 11. FILTER ONLY MISSING ITEMS
     // =====================================
 
     const recommendations =
-      geminiRecommendations.filter(
+      mistralRecommendations.filter(
         item => {
 
           if (!item?.type) {
@@ -488,7 +473,7 @@ for your recommendation.
       );
 
     // =====================================
-    // 11. LOG FINAL RESULT
+    // 12. LOG FINAL RESULT
     // =====================================
 
     console.log(
@@ -503,7 +488,7 @@ for your recommendation.
     );
 
     // =====================================
-    // 12. RETURN RESULT
+    // 13. RETURN RESULT
     // =====================================
 
     return {
