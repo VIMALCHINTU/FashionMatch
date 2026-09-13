@@ -7,15 +7,103 @@ const genAI = new GoogleGenerativeAI(
   process.env.GEMINI_API_KEY
 );
 
+
+// ===============================
+// GEMINI RETRY FUNCTION
+// ===============================
+
+async function generateWithRetry(
+  model,
+  content,
+  maxRetries = 3
+) {
+  for (
+    let attempt = 1;
+    attempt <= maxRetries + 1;
+    attempt++
+  ) {
+    try {
+      console.log(
+        `GEMINI ATTEMPT ${attempt}/${maxRetries + 1}`
+      );
+
+      const result =
+        await model.generateContent(content);
+
+      return result;
+
+    } catch (error) {
+
+      const message =
+        error.message || "";
+
+      console.log(
+        "GEMINI ERROR:",
+        message
+      );
+
+      const temporaryError =
+        message.includes("503") ||
+        message.includes("Service Unavailable") ||
+        message.includes("high demand") ||
+        message.includes("429") ||
+        message.includes("Too Many Requests");
+
+      if (!temporaryError) {
+        throw error;
+      }
+
+      if (attempt === maxRetries + 1) {
+        throw error;
+      }
+
+      const delay =
+        Math.min(
+          2000 * Math.pow(2, attempt - 1),
+          10000
+        );
+
+      console.log(
+        `Retrying Gemini in ${delay}ms...`
+      );
+
+      await new Promise(
+        resolve =>
+          setTimeout(resolve, delay)
+      );
+    }
+  }
+}
+
+
+// ===============================
+// TOTAL OUTFIT RECOMMENDATION
+// ===============================
+
 async function recommendTotalOutfit(
   fullbodyPath,
   occasion
 ) {
   try {
 
-    // =====================================
+    console.log(
+      "TOTAL OUTFIT STARTED"
+    );
+
+    console.log(
+      "FULLBODY:",
+      fullbodyPath
+    );
+
+    console.log(
+      "OCCASION:",
+      occasion
+    );
+
+
+    // ===============================
     // GEMINI MODEL
-    // =====================================
+    // ===============================
 
     const model =
       genAI.getGenerativeModel({
@@ -23,676 +111,273 @@ async function recommendTotalOutfit(
       });
 
 
-    // =====================================
-    // READ PERSON IMAGE
-    // =====================================
+    // ===============================
+    // READ IMAGE
+    // ===============================
 
     const imageBuffer =
-      fs.readFileSync(
-        fullbodyPath
-      );
+      fs.readFileSync(fullbodyPath);
 
 
-    // =====================================
-    // FASHION STYLIST PROMPT
-    // =====================================
+    // ===============================
+    // SHORT FASHION PROMPT
+    // ===============================
 
-    
-const prompt = `
-You are an expert modern fashion stylist specializing in MEN'S fashion,
-including Western, Indian ethnic, Indo-Western, contemporary, and
-occasion-specific outfits.
+    const prompt = `
+You are an expert modern men's fashion stylist.
 
-Analyze the person in the uploaded full-body image and create ONE COMPLETE
-outfit specifically for the selected occasion.
+Analyze the full-body image and create ONE complete outfit
+for the selected occasion.
 
-SELECTED OCCASION:
-"${occasion}"
-
-================================================
-MOST IMPORTANT RULE
-================================================
-
-The OCCASION is the highest-priority factor.
-
-DO NOT generate a generic formal outfit just because it looks safe.
-
-You MUST first understand what "${occasion}" means and then select the
-appropriate clothing CATEGORY, STYLE, FIT, COLORS, and FOOTWEAR.
-
-The final outfit must look like something a real person would actually
-wear to that specific occasion.
-
-================================================
-OCCASION-SPECIFIC STYLING
-================================================
-
-Use these rules as guidance.
-
--------------------------
-WEDDING
--------------------------
-
-For a wedding, DO NOT automatically recommend a western formal shirt
-and trousers.
-
-Prefer Indian or Indo-Western wedding outfits such as:
-
-- kurta pajama
-- embroidered kurta
-- festive kurta
-- silk kurta
-- jacquard kurta
-- short kurta with suitable bottoms
-- Nehru jacket with kurta
-- Indo-Western kurta
-- bandhgala
-- sherwani for highly traditional/formal weddings
-
-Choose based on the person's appearance and the likely level of formality.
-
-The outfit should feel FESTIVE and WEDDING-APPROPRIATE.
-
-Examples:
-
-- embroidered kurta + straight pajama + ethnic/mojari footwear
-- silk kurta + relaxed pajama + loafers
-- short kurta + straight trousers + ethnic loafers
-- kurta + Nehru jacket + tailored trousers + loafers
-- sherwani + churidar + traditional footwear for a highly formal wedding
-
-Do NOT return a normal office-style shirt and trousers for a wedding
-unless the occasion explicitly indicates a western/formal wedding theme.
-
--------------------------
-FESTIVAL
--------------------------
-
-For festivals, strongly prefer Indian ethnic or Indo-Western clothing.
-
-Possible choices:
-
-- kurta
-- short kurta
-- half kurta
-- printed kurta
-- solid festive kurta
-- cotton kurta
-- linen kurta
-- embroidered kurta
-- Indo-Western kurta
-
-Suitable bottoms can include:
-
-- pajama
-- straight trousers
-- relaxed trousers
-- dhoti-style pants
-- ethnic trousers
-
-Suitable footwear can include:
-
-- juttis
-- mojaris
-- ethnic loafers
-- clean traditional sandals
-- minimal loafers
-
-The outfit should feel festive, comfortable, modern and culturally
-appropriate.
-
--------------------------
-ENGAGEMENT
--------------------------
-
-Prefer sophisticated Indian or Indo-Western outfits.
-
-Good choices include:
-
-- elegant kurta
-- embroidered kurta
-- Nehru jacket
-- bandhgala
-- Indo-Western outfit
-- refined blazer + ethnic elements
-
-Avoid making it look like ordinary officewear.
-
--------------------------
-RECEPTION
--------------------------
-
-Reception outfits can be more polished and fashion-forward.
-
-Consider:
-
-- bandhgala
-- Indo-Western outfit
-- elegant kurta with jacket
-- blazer with coordinated trousers
-- sophisticated ethnic wear
-
-Choose according to the occasion and person's appearance.
-
--------------------------
-TRADITIONAL FUNCTION
--------------------------
-
-Strongly prefer traditional Indian clothing.
-
-Examples:
-
-- kurta pajama
-- traditional kurta
-- short kurta
-- dhoti-style bottom
-- Nehru jacket
-- ethnic footwear
-
-Avoid generic western officewear.
-
--------------------------
-PARTY
--------------------------
-
-For a party, use contemporary partywear.
-
-Possible choices:
-
-- stylish shirt
-- textured shirt
-- printed shirt
-- relaxed shirt
-- overshirt
-- contemporary trousers
-- straight-fit trousers
-- relaxed trousers
-- dark jeans when appropriate
-- stylish loafers
-- minimal sneakers when appropriate
-
-Do not automatically make the outfit formal.
-
--------------------------
-CASUAL
--------------------------
-
-Prefer comfortable modern casualwear.
-
-Possible choices:
-
-- relaxed shirt
-- oversized T-shirt
-- boxy T-shirt
-- polo
-- overshirt
-- straight jeans
-- relaxed jeans
-- cargos
-- relaxed trousers
-- clean sneakers
-
-Avoid unnecessary formalwear.
-
--------------------------
-COLLEGE / EVERYDAY
--------------------------
-
-Prefer youthful, comfortable and modern clothing.
-
-Possible choices:
-
-- oversized T-shirt
-- boxy T-shirt
-- relaxed shirt
-- casual overshirt
-- straight jeans
-- relaxed jeans
-- cargos
-- wide-leg trousers
-- clean sneakers
-
-The outfit should look trendy but realistic for everyday use.
-
--------------------------
-DATE
--------------------------
-
-Create a stylish and coordinated outfit that looks attractive without
-being overdressed.
-
-Possible choices:
-
-- textured shirt
-- relaxed/regular shirt
-- polo
-- smart casual overshirt
-- straight trousers
-- relaxed trousers
-- dark jeans
-- loafers or clean sneakers
-
-Choose colors that complement each other.
-
--------------------------
-INTERVIEW
--------------------------
-
-Use professional formalwear.
-
-Possible choices:
-
-- formal shirt
-- structured trousers
-- formal shoes
-- blazer when appropriate
-
-Keep the outfit clean, professional and conservative.
-
--------------------------
-OFFICE
--------------------------
-
-Use smart-casual or business-appropriate clothing depending on the
-occasion wording.
-
-Possible choices:
-
-- formal shirt
-- polo
-- smart casual shirt
-- chinos
-- tailored trousers
-- loafers
-- formal shoes
-
--------------------------
-STREETWEAR
--------------------------
-
-Prefer contemporary streetwear silhouettes.
-
-Possible choices:
-
-- oversized T-shirt
-- boxy T-shirt
-- oversized shirt
-- hoodie
-- relaxed overshirt
-- cargo pants
-- wide-leg pants
-- relaxed jeans
-- chunky/minimal sneakers
-
-Avoid traditional formalwear unless explicitly requested.
-
-================================================
-IMPORTANT CATEGORY RULE
-================================================
-
-You MUST return exactly these backend categories:
-
-1. shirt
-2. pant
-3. shoes
+OCCASION:
+${occasion}
 
 IMPORTANT:
 
-"shirt" does NOT necessarily mean a western button-down shirt.
+1. Analyze the person's visible appearance, body proportions,
+current clothing, silhouette and overall style.
 
-For Indian or ethnic occasions, the "shirt" category may represent the
-TOPWEAR and can be:
+2. Recommend exactly THREE clothing items:
 
-- kurta
-- short kurta
-- half kurta
-- embroidered kurta
-- festive kurta
-- silk kurta
-- Indo-Western kurta
-- Nehru-jacket-based topwear
-- bandhgala top
+- shirt
+- pant
+- shoes
 
-Similarly, "pant" does NOT necessarily mean jeans or western trousers.
+3. The three items must work together as ONE complete outfit.
 
-For ethnic occasions it can represent:
+4. Occasion is the highest priority.
 
-- pajama
-- churidar
-- straight ethnic trousers
-- dhoti-style pants
-- relaxed trousers
-- tailored trousers
-- other appropriate bottoms
-
-The category names MUST remain:
-
-"shirt"
-"pant"
-"shoes"
-
-because the backend depends on these category values.
-
-================================================
-PERSON ANALYSIS
-================================================
-
-Consider:
-
-- visible body proportions
-- silhouette
-- apparent build
-- overall appearance
-- hairstyle/grooming when visible
-- current clothing when relevant
-- balance between top and bottom
-- realistic fit
-
-Do not make assumptions about attributes that cannot be determined from
-the image.
-
-================================================
-FIT AND SILHOUETTE
-================================================
-
-Do NOT automatically recommend skinny clothing.
-
-Prefer an appropriate modern fit such as:
-
-- relaxed fit
-- regular fit
-- straight fit
-- relaxed straight fit
-- tapered fit
-- loose fit
-- wide-leg
-- oversized
-- boxy
-- slim fit only when genuinely appropriate
-
-The top and bottom must create a balanced silhouette.
-
+WEDDING / FESTIVAL / TRADITIONAL:
+Use appropriate Indian ethnic or Indo-Western clothing.
 Examples:
+kurta, pajama, churidar, Nehru jacket, bandhgala,
+sherwani, ethnic trousers, mojari or jutti.
 
-- oversized/boxy kurta → avoid unnecessarily skinny bottoms
-- relaxed shirt → use straight or relaxed bottoms
-- wide-leg pants → balance them with an appropriate top
-- formal outfit → use clean structured fits
-- ethnic outfit → use culturally appropriate proportions
-- streetwear → use intentional oversized/relaxed proportions
-
-================================================
-COLOR COORDINATION
-================================================
-
-Create ONE deliberate color palette.
-
-Usually use 2–3 main colors.
-
-Consider:
-
-- skin/appearance visible in the image
-- occasion
-- traditional color conventions where appropriate
-- modern fashion
-- contrast
-- top-to-bottom balance
-
-For weddings/festivals, colors may include appropriate festive shades such as:
-
-- ivory
-- cream
-- beige
-- maroon
-- burgundy
-- bottle green
-- emerald
-- navy
-- royal blue
-- mustard
-- rust
-- pastel pink
-- dusty rose
-- sage
-- charcoal
-- black
-
-Do NOT randomly combine colors.
-
-Do NOT always use:
-
-white shirt + navy pants + brown shoes.
-
-The color combination must look intentional.
-
-================================================
-FOOTWEAR
-================================================
-
-Footwear must match the selected occasion and outfit.
-
+PARTY:
+Use stylish contemporary partywear.
 Examples:
+fashion shirts, overshirts, trousers, dark jeans,
+loafers or fashionable sneakers.
 
-Wedding / Festival:
-- juttis
-- mojaris
-- ethnic loafers
-- traditional sandals
+CASUAL / COLLEGE:
+Use modern relaxed clothing.
+Examples:
+oversized or boxy shirts/T-shirts, jeans, cargos,
+relaxed trousers and sneakers.
 
-Formal:
-- Oxford shoes
-- Derby shoes
-- formal loafers
+DATE:
+Use stylish smart-casual clothing.
+Examples:
+textured shirts, polos, trousers, dark jeans,
+loafers or clean sneakers.
 
-Smart casual:
-- loafers
-- minimal sneakers
+INTERVIEW / OFFICE:
+Use professional clothing.
+Examples:
+formal shirts, structured trousers, blazer,
+loafers or formal shoes.
 
-Casual:
-- clean sneakers
-- casual loafers
+STREETWEAR:
+Use modern streetwear.
+Examples:
+oversized/boxy tops, cargos, wide-leg pants,
+relaxed jeans and contemporary sneakers.
 
-Streetwear:
-- contemporary sneakers
+FIT:
 
-Do NOT recommend formal leather shoes with a casual streetwear outfit
-unless intentionally appropriate.
+Prefer modern and realistic fits such as:
+regular, relaxed, straight, relaxed-straight,
+tapered, loose, wide-leg, oversized or boxy.
 
-================================================
-CURRENT FASHION
-================================================
+Do NOT automatically choose skinny fit.
 
-The outfit should look CURRENT and modern.
+COLOR:
 
-Prefer contemporary:
+Analyze the person and choose a coordinated 2–3 color palette.
 
-- silhouettes
-- fits
-- colors
-- fabrics
-- styling
-- footwear
+Do not always use the same colors.
 
-However, do not sacrifice occasion appropriateness just to follow trends.
+The shirt, pant and shoes must visually match.
 
-The outfit must be stylish AND realistic.
+FOOTWEAR:
 
-================================================
-SHOPPING SEARCH QUERY
-================================================
+Shoes must match both the outfit and occasion.
 
-Create a detailed shopping query for each item.
+CATEGORY RULES:
 
-The query must closely describe the recommended product.
+The backend categories MUST be exactly:
 
-Include:
+shirt
+pant
+shoes
 
-- men's
-- color
-- garment type
-- style
-- fit
-- relevant occasion keyword when useful
+"shirt" may represent appropriate topwear such as:
+shirt, T-shirt, kurta, short kurta, bandhgala,
+or other suitable topwear.
 
-For example:
+"pant" may represent:
+trousers, jeans, cargos, pajama, churidar,
+ethnic trousers, dhoti-style pants,
+or other suitable bottoms.
 
-Wedding:
+For every recommendation provide:
 
-"men's ivory embroidered festive kurta regular fit wedding"
+type
+color
+style
+fit
+reason
+searchQuery
 
-"men's cream straight fit pajama wedding ethnic"
+searchQuery must be suitable for product searching.
 
-"men's brown leather mojari wedding ethnic footwear"
+It should contain useful details such as:
+men's + color + garment + style + fit + occasion.
 
-Festival:
-
-"men's sage green short kurta relaxed fit festival"
-
-"men's cream straight fit ethnic trousers festival"
-
-"men's tan leather mojari ethnic festival"
-
-Casual:
-
-"men's olive green relaxed fit overshirt casual"
-
-"men's charcoal straight fit jeans casual"
-
-"men's white minimalist sneakers casual"
-
-Streetwear:
-
-"men's oversized black graphic t-shirt streetwear"
-
-"men's charcoal wide leg cargo pants streetwear"
-
-"men's black contemporary sneakers streetwear"
-
-The query must match the ACTUAL recommendation.
-
-================================================
-FINAL QUALITY CHECK
-================================================
-
-Before returning the JSON, internally verify:
-
-1. Does this outfit actually match "${occasion}"?
-2. Would a real person wear this outfit to that occasion?
-3. Are the three items stylistically compatible?
-4. Is the silhouette balanced?
-5. Are the colors coordinated?
-6. Is the outfit modern?
-7. Is the footwear appropriate?
-8. Does the searchQuery accurately describe the recommendation?
-9. If this is a wedding/festival/traditional occasion, did I consider
-   Indian ethnic or Indo-Western clothing instead of defaulting to
-   western formalwear?
-
-If the occasion is clearly Indian/traditional, prioritize culturally
-appropriate Indian or Indo-Western clothing.
-
-================================================
-RETURN FORMAT
-================================================
+IMPORTANT:
 
 Return ONLY valid JSON.
 
-Do not use markdown.
+Do NOT use markdown.
+Do NOT use code fences.
+Do NOT add explanations outside JSON.
 
-Do not include explanations outside JSON.
-
-Return EXACTLY this structure:
+Use exactly this structure:
 
 {
   "recommendations": [
     {
       "type": "shirt",
-      "color": "specific color",
-      "style": "specific garment style",
-      "fit": "specific fit",
-      "reason": "short reason why this matches the person and occasion",
-      "searchQuery": "detailed shopping search query"
+      "color": "string",
+      "style": "string",
+      "fit": "string",
+      "reason": "string",
+      "searchQuery": "string"
     },
     {
       "type": "pant",
-      "color": "specific color",
-      "style": "specific bottom style",
-      "fit": "specific fit",
-      "reason": "short reason why this matches the shirt and occasion",
-      "searchQuery": "detailed shopping search query"
+      "color": "string",
+      "style": "string",
+      "fit": "string",
+      "reason": "string",
+      "searchQuery": "string"
     },
     {
       "type": "shoes",
-      "color": "specific color",
-      "style": "specific footwear style",
+      "color": "string",
+      "style": "string",
       "fit": "not applicable",
-      "reason": "short reason why these shoes complete the outfit",
-      "searchQuery": "detailed shopping search query"
+      "reason": "string",
+      "searchQuery": "string"
     }
   ]
 }
 `;
 
-    // =====================================
-    // SEND IMAGE + PROMPT TO GEMINI
-    // =====================================
+
+    // ===============================
+    // GEMINI REQUEST
+    // ===============================
 
     const result =
-      await model.generateContent([
-        {
-          inlineData: {
-            data:
-              imageBuffer.toString("base64"),
+      await generateWithRetry(
+        model,
+        [
+          {
+            inlineData: {
+              data:
+                imageBuffer.toString("base64"),
 
-            mimeType:
-              "image/jpeg"
+              mimeType:
+                "image/jpeg"
+            }
+          },
+
+          {
+            text: prompt
           }
-        },
-        {
-          text: prompt
-        }
-      ]);
+        ]
+      );
 
 
-    // =====================================
+    // ===============================
     // GET GEMINI RESPONSE
-    // =====================================
+    // ===============================
 
     const text =
       result.response.text();
 
     console.log(
-      "GEMINI TOTAL OUTFIT RESPONSE:",
+      "RAW GEMINI RESPONSE:",
       text
     );
 
 
-    // =====================================
-    // CLEAN JSON RESPONSE
-    // =====================================
+    // ===============================
+    // CLEAN JSON
+    // ===============================
 
-    const cleanText =
+    let cleanedText =
       text
-        .replace(/```json/g, "")
+        .replace(/```json/gi, "")
         .replace(/```/g, "")
         .trim();
 
 
-    // =====================================
+    // Sometimes Gemini adds text
+    // before or after JSON.
+
+    const start =
+      cleanedText.indexOf("{");
+
+    const end =
+      cleanedText.lastIndexOf("}");
+
+
+    if (
+      start !== -1 &&
+      end !== -1
+    ) {
+      cleanedText =
+        cleanedText.substring(
+          start,
+          end + 1
+        );
+    }
+
+
+    // ===============================
     // PARSE JSON
-    // =====================================
+    // ===============================
 
-    const outfit =
-      JSON.parse(cleanText);
+    let parsed;
+
+    try {
+
+      parsed =
+        JSON.parse(cleanedText);
+
+    } catch (error) {
+
+      console.log(
+        "JSON PARSE ERROR:",
+        error.message
+      );
+
+      console.log(
+        "CLEANED GEMINI RESPONSE:",
+        cleanedText
+      );
+
+      throw new Error(
+        "Gemini returned invalid JSON"
+      );
+    }
 
 
-    // =====================================
-    // VALIDATE RESULTS
-    // =====================================
-
-    const recommendations =
-      outfit.recommendations || [];
-
+    // ===============================
+    // VALIDATE RECOMMENDATIONS
+    // ===============================
 
     const requiredTypes = [
       "shirt",
@@ -700,29 +385,72 @@ Return EXACTLY this structure:
       "shoes"
     ];
 
+    const recommendations =
+      Array.isArray(
+        parsed.recommendations
+      )
+        ? parsed.recommendations
+        : [];
+
+
+    // Keep only required categories
 
     const filteredRecommendations =
-      recommendations.filter(item =>
-        requiredTypes.includes(
-          item.type?.toLowerCase()
-        )
+      recommendations.filter(
+        item =>
+          item &&
+          requiredTypes.includes(
+            item.type
+          )
       );
 
 
+    // ===============================
+    // REMOVE DUPLICATE TYPES
+    // ===============================
+
+    const uniqueRecommendations = [];
+
+    const usedTypes = new Set();
+
+    for (
+      const recommendation
+      of filteredRecommendations
+    ) {
+
+      if (
+        usedTypes.has(
+          recommendation.type
+        )
+      ) {
+        continue;
+      }
+
+      usedTypes.add(
+        recommendation.type
+      );
+
+      uniqueRecommendations.push(
+        recommendation
+      );
+    }
+
+
+    // ===============================
+    // FINAL RESULT
+    // ===============================
+
     console.log(
-      "FINAL TOTAL OUTFIT:",
-      filteredRecommendations
+      "FINAL RECOMMENDATIONS:",
+      uniqueRecommendations
     );
 
 
-    // =====================================
-    // RETURN EXACTLY THE OUTFIT
-    // =====================================
-
     return {
       recommendations:
-        filteredRecommendations
+        uniqueRecommendations
     };
+
 
   } catch (error) {
 
@@ -734,6 +462,7 @@ Return EXACTLY this structure:
     throw error;
   }
 }
+
 
 module.exports =
   recommendTotalOutfit;

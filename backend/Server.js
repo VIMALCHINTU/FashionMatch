@@ -1026,7 +1026,6 @@ app.post(
 
 app.post(
   "/totaloutfit",
-
   upload.single("fullbody"),
 
   async (req, res) => {
@@ -1046,19 +1045,14 @@ app.post(
       // ==============================
 
       if (!fullbody) {
-
         return res.status(400).json({
-          message:
-            "Full body image is required"
+          message: "Full body image is required"
         });
       }
 
-
       if (!occasion) {
-
         return res.status(400).json({
-          message:
-            "Occasion is required"
+          message: "Occasion is required"
         });
       }
 
@@ -1107,6 +1101,16 @@ app.post(
         "RECOMMENDATIONS COUNT:",
         recommendations.length
       );
+
+
+      if (recommendations.length === 0) {
+
+        return res.status(500).json({
+          message:
+            "No outfit recommendations generated"
+        });
+
+      }
 
 
       // ==============================
@@ -1220,7 +1224,9 @@ app.post(
 
             platform:
               product.platform || ""
+
           });
+
         }
 
 
@@ -1240,7 +1246,9 @@ app.post(
             !product.image ||
             typeof product.image !== "string"
           ) {
+
             continue;
+
           }
 
 
@@ -1343,6 +1351,10 @@ app.post(
             currentPerson
           );
 
+
+          // Stop trying products
+          // after first successful try-on
+
           break;
         }
 
@@ -1353,7 +1365,9 @@ app.post(
             "NO PRODUCT COULD BE APPLIED:",
             recommendation.type
           );
+
         }
+
       }
 
 
@@ -1377,6 +1391,7 @@ app.post(
         finalImageUrl
       );
 
+
       console.log(
         "TOTAL PRODUCTS:",
         recommendedProducts.length
@@ -1399,6 +1414,7 @@ app.post(
 
         products:
           recommendedProducts
+
       });
 
 
@@ -1421,8 +1437,11 @@ app.post(
 
         error:
           error.message
+
       });
+
     }
+
   }
 );
 
